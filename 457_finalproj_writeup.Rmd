@@ -1,0 +1,232 @@
+---
+title: "Forecasting US Monthly Unemployment Rate"
+author: "Weilin Yin"
+date: "14/04/2022"
+output: pdf_document
+header-includes: \usepackage{setspace}\doublespacing
+fontsize: 12pt
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+knitr::opts_chunk$set(include = TRUE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(warning = FALSE)
+```
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(astsa)
+```
+
+### Abstract
+
+Unemployment has been one of the most popular and important concepts in Economics since it reflects the economic growth of a country. Hence, understanding the dynamic of the unemployment rate can provide an alternative way to assess the condition of an economy. In this study, the 1948-2016 US monthly unemployment rate data is utilized to build a seasonal autoregressive intergrated moving average model (SARIMA). Using the final model, 10-step ahead (10 months) prediction is made. The result is that, for the next 10 months after 2016, the monthly unemployment rate remains flat. Also, a spectral analysis is performed to identify the first three predominant periods. Due to large confidence interval range, no significance is established for these periods. The forecasting model also has a few pitfalls which are also discussed.
+
+### Keywords
+
+Time Series Analysis, Unemployment, Seasonal Autoregressive Integrated Moving Average (SARIMA)
+
+
+### Introduction
+
+Unemployment has been one of the most popular topics in Economics because it is one of the measurements of a country's economic performance. Thus, it is strongly related to the gross domestic product (GDP). In macroeconomic, Okun (1962) developed the Okun's law states that a 1% reduction in GDP would have 3% higher unemployment rate. Farsio and Quade (2003) proved that the negative relationship exists using the twenty-five years quarterly US unemployment data. Hence, having a model that could forecast the unemployment rate would be beneficial as it also provides a prediction to the GDP and economic performance as well. In the current literature, there have been many researchers using different methods and models to make prediction on US unemployment rate. Kreiner and Duca (2019) applied multiple models (e.g., neural network, Lasso regression, Naïve forecast, and SPF forecast) to make predictions on US unemployment rate, all the prediction indicating a decreasing trend after 2016. In this study, a seasonal autoregressive intergrated moving average model (SARIMA) is utilized to forecast the unemployment rate. The data I used in this study is the US monthly unemployment rate data from 1948 to 2016.
+
+The rest of the paper is organized in the following way: __Statistical Methods__ section discusses the exploratory data analysis and the model building process. __Results__ section demonstrates the final model used to forecast, the result of prediction, and the spectral analysis. __Discussion__ section concludes the study and points out the limitations of this study as well as suggestion on future researches.
+
+
+
+
+### Statistical Methods
+
+```{r}
+# read in the data
+Unemployment = UnempRate
+```
+
+
+Before building the model, it is important to examine the data to see if any adjustment is needed to correctly fit a model. From Figure 1, we can see that there are significant fluctuations from year to year. Hence, in order to stabilized the data, the monthly unemployment rate $x_t$ is differenced for one time. Now by doing so, the trend becomes stable and we have a time series $\triangledown x_t$. Moreover, it is noticeable that the differenced data still have seasonal pattern, thus a twelve-order difference on the time series $\triangledown x_t$ is applied. The results after these two transformations is presented in Figure 2. From Figure 2, it can be confirmed that the time series $\triangledown_{12}\triangledown x_t$ is stationary and has a constant mean and variance.
+
+```{r,fig.height=3, fig.width=5, include=T, echo=F, fig.cap = "Monthly Unemployment rate in percent from 1948 to 2016"}
+# plot the data to see if stationary
+plot.ts(Unemployment, ylab="Unemployment Rate")
+```
+
+```{r, fig.height=3, fig.width=7, fig.cap="Plot of the differenced data"}
+diff_data = diff(Unemployment)
+two_diff = diff(diff_data, 12)
+plot.ts(two_diff)
+abline(h=0, col="red")
+```
+
+
+
+
+```{r, fig.height=3, fig.width=4, fig.cap="ACF and PACF for differenced data"}
+plot = acf2(two_diff, 50)
+```
+
+
+Since the data was taken seasonal difference, the SARIMA model is strongly preferred. In order to build the model, we need to find out the seasonal elements and non-seasonal elements of the model. This procedure is done by inspecting the ACF and PACF graphs of the time series $\triangledown_{12}\triangledown x_t$ in Figure 3. For seasonal components, we can see that both ACF and PACF cut off after $\text{lag}=1\times s$ where $s=12$ since we took the twelve-order difference. Hence, we can set $P = 1$, $Q=1$, $D =1$, and $s=12$. In terms of the non-seasonal components, from Figure 3, the ACF cuts off after $\text{lag}= 2$ or $\text{lag}=3$ and the PACF cuts off after $\text{lag}=2$. Hence, we can say that $p = 2$, $q = 2\text{ } \text{or} \text{ } 3$, and $d = 1$. With both of the seasonal and non-seasonal components, two models are proposed.
+
+$$
+\begin{aligned}
+ARIMA(2, 1, 2) &\times (1, 1, 1)_{12} \\
+ARIMA(2, 1, 3) &\times (1, 1, 1)_{12}
+\end{aligned}
+$$
+
+### Results
+
+Figure 4 and Figure 5 demonstrates the diagnostic plots for the two proposed model. For $ARIMA(2, 1, 2) \times (1, 1, 1)_{12}$ and $ARIMA(2, 1, 3) \times (1, 1, 1)_{12}$, the residual plots demonstrates no obvious pattern and the ACF of residual plots shows that there is no spike that is significant enough at 5% significance level. Hence, we can conclude that both model satisfy the randomness assumption. The Normal Quantile-Quantile plots of standard residuals for both models illustrates that the normality assumption is satisfied well enough even though there are a few outliers at the tails. For the plot of p-values for Ljung-Box statistics of two models, most of the points are above the 0.05 line which means we do not reject the null hypothesis that the residuals are independent. So far, both models perform equally well according to the set of diagnostic plots. Table 1 displays the AIC, BIC, and AICc for each model. By comparing these criteria, we can see that $ARIMA(2, 1, 3) \times (1, 1, 1)_{12}$ has slightly smaller AIC, BIC, and AICc.
+
+```{r, fig.width=6, fig.height=3, results = "hide", fig.keep = "all", fig.cap="Residual Analysis for $ARIMA(2, 1, 2) \\times (1, 1, 1)_{12}$"}
+res_plot = sarima(Unemployment, 2, 1, 2, 1, 1, 1, 12, details = T)
+```
+
+```{r, fig.width=6, fig.height=3, results = "hide", fig.keep = "all", fig.cap="Residual Analysis for $ARIMA(2, 1, 3) \\times (1, 1, 1)_{12}$"}
+res_plot2 = sarima(Unemployment, 2, 1, 3, 1, 1, 1, 12, details = T)
+```
+
+```{r}
+aics = c(res_plot$AIC, res_plot2$AIC)
+aiccs = c(res_plot$AICc, res_plot2$AICc)
+bics = c(res_plot$BIC, res_plot2$BIC)
+df_res = tibble(Model = c("$ARIMA(2, 1, 2) \\times (1, 1, 1)_{12}$", "$ARIMA(2, 1, 3) \\times (1, 1, 1)_{12}$"),
+                AIC = aics,
+                AICc = aiccs,
+                BIC = bics)
+kable(df_res, caption = "AIC, AICc, BIC for two proposed models")
+```
+
+After the model diagnostic and comparison process, the final model we use to forecast is displayed below.
+$$
+(1 - \Phi_1B^{12})(1-\phi_1B-\phi_2B^2)(1-B^{12})(1-B)x_t = (1+\Theta_1 B^{12})(1+\theta_1B+\theta_2B^2+\theta_3B^3) w_t
+$$
+where $x_t$ is unemployment time series, $w_t$ is the white noise that $w_t \sim N(0, \sigma_w^2)$, $B$ is for backshift operator. $\Phi_1$, $\phi_1$, $\phi_2$, $\Theta_1$, $\theta_1$, $\theta_2$, $\theta_3$ are all model parameters.
+
+
+```{r}
+df_est = data.frame(res_plot2$ttable)
+rownames(df_est) = c("$\\phi_1$", "$\\phi_2$", "$\\theta_1$", "$\\theta_2$", "$\\theta_3$", "$\\Phi_1$", "$\\Theta_1$")
+kable(df_est, col.names = c("Estimate", "Std. Error", "t-value", "p-value"), caption = "Parameter Estimation for $ARIMA(2, 1, 3) \\times (1, 1, 1)_{12}$")
+```
+
+By fitting the final model we developed in the previous section, we get the estimations of each model parameter and display in Table 2. Among all of the estimates, most of estimation for parameters are statistically significant as their p-values are less than 0.05, except for the estimate of $\Phi_1$. Therefore, the fitted model is in the form of the following:
+$$
+(1-1.8265B+0.8361B^2)(1-B^{12})(1-B)\hat{x_t} = (1-0.7527	 B^{12})(1-1.7432B+0.8323B^2-0.0891B^3) \hat{w_t}
+$$
+The estimates we got for parameters tell us how influential the previous months unemployment rates are on current month unemployment rate. For example, the estimate of $\phi_1$ is 1.8265 which means that the current unemployment rate depends on the previous month unemployment rate with the weight of 1.83. Similarly, the estimate of $\phi_2$ is -0.8361 means that the current unemployment rate is influenced negatively by the unemployment rate of the month before last month with a weight of 0.84. To be more specific, for the parameters of the model, $d = 1$ indicates there is first-order differencing, $D = 1$ means that there is one seasonal differencing. $p = 2 \text{ and } P = 1 $ represents the number of AR terms respectively. $q = 3 \text{ and } Q = 1$ represents the number of MA terms respectively. $s =12$ means that there are 12 observations in one seasonal cycle. 
+
+Using the fitted model, we can continue to forecast the monthly unemployment rate for the next 10 months after 2016. Figure 6 shows the predications for the next 10 months in red points with their 95% confidence interval as grey. Also, the values of predictions and the values of 95% confidence interval for each prediction are listed in Table 3.
+
+
+```{r, fig.width=5, fig.height=2, fig.cap="Forecasting unemployment rate for next 10 months using $ARIMA(2, 1, 3) \\times (1, 1, 1)_{12}$"}
+prediction = sarima.for(Unemployment, 10, 2, 1, 3, 1, 1, 1, 12)
+```
+
+
+```{r}
+# construct the 95% CI
+Months = seq(1, 10, 1)
+# upper bound
+upperBound = prediction$pred + qnorm(0.975) * prediction$se
+# lower bound
+lowerBound = prediction$pred - qnorm(0.975) * prediction$se
+
+knitr::kable(tibble(Months, prediction$pred, lowerBound, upperBound, 
+       .name_repair = ~ c("Future Month", "Predicted Value",
+                          "Lower Bound of 95% CI",
+                          "Upper Bound of 95% CI")),
+       caption = "Forecasting unemployment rate for next 10 months using $ARIMA(2, 1, 3) \\times (1, 1, 1)_{12}$ with 95 percent Confidence Interval") %>% kableExtra::kable_styling(latex_options = "HOLD_position")
+```
+
+From Figure 6 and Table 3, we can conclude several findings. First of all, the trend of unemployment rate for the next 10 months is slightly upward. This means that, for the next 10 months after 2016, unemployment would remain at the same level. This finding is consistent to what Kreiner and Duca (2019) found using several models. Secondly, by looking at the 95% confidence interval, we can see that the magnitude of the confidence interval is relatively small compared to the magnitude of the estimation. Thus, we can say that the forecasting is relatively precise in terms of the economic significance.
+
+
+Next, we perform a spectral analysis to identify the first three predominant periods. In Figure 7, we can observe that the first peak occurs when frequency is 0.03. In theory, $\text{frequency} = \frac{1}{\text{cycle}} = \frac{1}{12}$. What we observed is close to what the theory states. 
+
+
+```{r, fig.width=4, fig.height=2, fig.cap="Periodogram of unemployment rate in US"}
+# Apply spectral analysis to the time serie data
+unemp_spec = mvspec(Unemployment, log = "no", main="Periodogram of unemployment rate in US", nxm = 10, xlim = c(0, 4))
+```
+
+
+
+
+
+```{r}
+
+# extract the first three dominant frequencies
+first_three = unemp_spec$details[order(unemp_spec$details[,3], decreasing = T), ]
+first = first_three[1, 1]
+second = first_three[2, 1]
+third = first_three[3, 1]
+# get the 90% CI
+## for first frequency
+first_upper = 2 * first_three[1, 3] / qchisq(0.025, 2)
+first_lower = 2 * first_three[1, 3] / qchisq(0.975, 2)
+
+## for second frequency
+second_upper = 2 * first_three[2, 3] / qchisq(0.025, 2)
+second_lower = 2 * first_three[2, 3] / qchisq(0.975, 2)
+
+## for third frequency
+third_upper = 2 * first_three[3, 3] / qchisq(0.025, 2)
+third_lower = 2 * first_three[3, 3] / qchisq(0.975, 2)
+
+## first cycle
+first_cycle = 1 / first
+## second cycle
+second_cycle = 1 / second
+## third cycle
+third_cycle  = 1 / third
+
+# construct a dataframe
+frequencies = c(first, second, third)
+cycles = c(first_cycle, second_cycle, third_cycle)
+specs = c(first_three[1, 3], first_three[2, 3], first_three[3, 3])
+lowers = c(first_lower, second_lower, third_lower)
+uppers = c(first_upper, second_upper, third_upper)
+
+df = data.frame("Dominant_freq" = frequencies,
+                "Specs" = specs,
+                "Period" = cycles,
+                "Lower_bound_of_95%_CI" = lowers,
+                "Upper_bound_of_95%_CI" = uppers) 
+
+df = df %>% rename("Lower bound of 95% CI" = Lower_bound_of_95._CI,
+                   "Upper bound of 95% CI" = Upper_bound_of_95._CI,
+                   "Frequency" = Dominant_freq,
+                   "Spectrum" = Specs)
+
+knitr::kable(df, caption = "First three predominant periods and their 95 percent confidence interval") %>% 
+  kableExtra::kable_styling(latex_options = "HOLD_position")
+```
+
+Table 4 above shows the first three predominant periods of US monthly unemployment rate and their 95% confidence interval. Each of the confidence interval has a large range which means that it is hard to retrieve any useful information of significance. For the first period, the periodogram ordinate is 14.48 which is also within the 95% confidence intervals for period 2 and period 3, thus we cannot establish significance for the first peak. For the second period, the periodogram ordinate is 11.17 which is also with in the 95% confidence intervals of period 1 and period 3, hence we cannot say that a the significance for the second peak is established. For the third period, the periodogram ordinate is 9.96 which is also within the 95% confidence intervals of period 1 and period 2. Therefore, no significance for the third peak can be established. In short, since the confidence interval is too large, we can extract little information in terms of the significance.
+
+### Discussion
+
+According to the result of forecasting, we can conclude that the monthly unemployment rate would remain at a constant level for the next 10 months after 2016. One important factor that could explain the changes of the downward trending pattern to a flat pattern is that Donald Trump became the President of USA in 2017. Thus, at the beginning of 2017, most people were still observing and waiting to see how Trump would do to the market. Thus, there was no significant change in labour market. If we look at the actual unemployment rate after October in 2017, we would see a huge drop in the rate. This is because Trump introduced the tax cut Act which reduces the corporate tax (Silva, 2021). This Act would promote lower unemployment rate in labor market as firms had more budget to hire more workers. Hence, our prediction indeed is consistent with the actual data. Despite the reasonable forecasting, the model we built still suffers from a few limitations. First of all, the data we used to build the forecasting model is before the COVID-19 pandemic outbreak. The global pandemic has changed the labor market entirely. Firms have tighten their budget to survive from the economic recession caused by the pandemic. Numbers of workers became unemployed due to the layoffs of their companies. The model does not account for the exogenous factors like COVID-19 pandemic. Secondly, there are outliers in the data that we did not remove. From the Normal Q-Q plot of the final model, we can see that the normality assumption is not completely satisfied as outliers exist at the tail. However, we considered that the assumption is satisfied well enough so that we proceeded. This may potentially introduce bias to the model. For future researches, we can collect more latest data to incorporate the effect of global pandemic to the labor market, and find a data that has better quality and less outliers so that assumptions are well satisfied. 
+
+
+\newpage
+
+### Reference
+
+[1] R Core Team (2021). R: A language and environment for statistical computing. R Foundation for Statistical Computing, Vienna, Austria. https://www.R-project.org/.
+  
+[2] Wickham et al., (2019). Welcome to the tidyverse. Journal of Open Source Software, 4(43), 1686, https://doi.org/10.21105/joss.01686
+
+[3] David Stoffer (2021). astsa: Applied Statistical Time Series Analysis. R package version 1.14. https://CRAN.R-project.org/package=astsa
+
+[4] Yihui Xie (2021). knitr: A General-Purpose Package for Dynamic Report Generation in R. R package version 1.34.
+
+[5] Farsio, F., &amp; Quade, S. (2003). An empirical analysis of the relationship between GDP and unemployment. Humanomics, 19(3), 1–6. https://doi.org/10.1108/eb018884 
+
+[6] Kreiner, A., &amp; Duca, J. (2019). Can machine learning on economic data better forecast the unemployment rate? Applied Economics Letters, 27(17), 1434–1437. https://doi.org/10.1080/13504851.2019.1688237 
+
+[7] Silva. (2021). Who benefited most from the trump tax cuts? Policygenius. Retrieved April 17, 2022, from https://www.policygenius.com/taxes/who-benefited-most-from-the-tax-cuts-and-jobs-act/ 
